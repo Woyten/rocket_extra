@@ -1,6 +1,6 @@
 [package]
 name = "rocket_extra_codegen"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["torfmaster <briefe@kebes.de>", "Woyten <woyten.tielesch@online.de>"]
 description = "Additional macros for rocket.rs"
 repository = "https://github.com/Woyten/rocket_extra_codegen"
