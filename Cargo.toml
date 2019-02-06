@@ -4,6 +4,7 @@ version = "0.0.0"
 authors = ["torfmaster <briefe@kebes.de>", "Woyten <woyten.tielesch@online.de>"]
 description = "Additional macros for rocket.rs"
 repository = "https://github.com/Woyten/rocket_extra_codegen"
+readme = "README.md"
 keywords = ["derive", "macros", "rocket"]
 license = "MIT"
 edition = "2018"
