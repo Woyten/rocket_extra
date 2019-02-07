@@ -2,6 +2,8 @@
 
 extern crate proc_macro;
 
+static ERROR_TYPE_ATTRIBUTE: &str = "error_type";
+
 use crate::proc_macro::TokenStream;
 use quote::quote;
 use syn;
@@ -84,7 +86,7 @@ fn get_error_type(attrs: &[Attribute]) -> Result<Option<Type>, Error> {
     let mut error_type_decls = attrs
         .iter()
         .filter_map(|attr| attr.parse_meta().ok().map(|meta| (attr, meta)))
-        .filter(|(_attr, meta)| meta.name() == "error_type")
+        .filter(|(_attr, meta)| meta.name() == ERROR_TYPE_ATTRIBUTE)
         .collect::<Vec<_>>();
 
     let error_type_attr_meta = match (error_type_decls.pop(), error_type_decls.pop()) {
@@ -93,7 +95,7 @@ fn get_error_type(attrs: &[Attribute]) -> Result<Option<Type>, Error> {
         (Some((attr, _meta)), Some(_)) => {
             return Err(Error::new_spanned(
                 attr,
-                "Found more than one `error_type` declaration",
+                format!("Found more than one `{}` declaration", ERROR_TYPE_ATTRIBUTE),
             ));
         }
     };
@@ -103,7 +105,10 @@ fn get_error_type(attrs: &[Attribute]) -> Result<Option<Type>, Error> {
     } else {
         return Err(Error::new_spanned(
             error_type_attr_meta,
-            "Expected a name-value attribute, e.g. `#[error_type = \"MyType\"]`",
+            format!(
+                "Expected a name-value attribute, e.g. `#[{} = \"MyType\"]`",
+                ERROR_TYPE_ATTRIBUTE
+            ),
         ));
     };
 
