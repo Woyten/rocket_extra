@@ -19,14 +19,7 @@ pub struct DeepBooksService {
     _field: TestService,
 }
 
+#[derive(FromRequest)]
 struct TestField;
-
-impl<'a, 'r> FromRequest<'a, 'r> for TestField {
-    type Error = ();
-
-    fn from_request(_request: &'a Request<'r>) -> Outcome<Self, (Status, Self::Error), ()> {
-        unimplemented!()
-    }
-}
 
 fn main() {}

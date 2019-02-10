@@ -12,5 +12,5 @@ install:
 
 script:
   - cargo fmt --all -- --check
-  - cargo build 
+  - cargo build --all-targets
   - cargo test
