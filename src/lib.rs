@@ -1,10 +1,11 @@
 #![recursion_limit = "128"]
-
 extern crate proc_macro;
+extern crate proc_macro2;
 
 static ERROR_TYPE_ATTRIBUTE: &str = "error_type";
 
 use crate::proc_macro::TokenStream;
+
 use quote::quote;
 use syn;
 use syn::Attribute;
@@ -18,11 +19,17 @@ use syn::Type;
 
 #[proc_macro_derive(FromRequest, attributes(error_type))]
 pub fn derive_from_request(input: TokenStream) -> TokenStream {
+    derive_from_request_wrapped(input.into()).into()
+}
+
+fn derive_from_request_wrapped(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     try_derive_from_request(input).unwrap_or_else(|err| err.to_compile_error().into())
 }
 
-fn try_derive_from_request(input: TokenStream) -> Result<TokenStream, Error> {
-    let ast = syn::parse::<DeriveInput>(input)?;
+fn try_derive_from_request(
+    input: proc_macro2::TokenStream,
+) -> Result<proc_macro2::TokenStream, Error> {
+    let ast = syn::parse2::<DeriveInput>(input)?;
 
     let name = ast.ident;
     let fields = match ast.data {
@@ -118,5 +125,48 @@ fn get_error_type(attrs: &[Attribute]) -> Result<Option<Type>, Error> {
             Err(_) => Err(Error::new_spanned(lit_str, "Invalid type specifier")),
         },
         other => Err(Error::new_spanned(other, "Invalid string literal")),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use syn::ItemImpl;
+
+    #[test]
+    fn from_request_can_be_derived_for_simple_example() {
+        let struct_def: proc_macro2::TokenStream = quote! {
+            struct MyStruct {
+                field: Field,
+            }
+        }
+        .into();
+        let actual =
+            syn::parse2::<ItemImpl>(derive_from_request_wrapped(struct_def.into())).unwrap();
+        #[rustfmt::skip]
+        let expected: ItemImpl = syn::parse2::<ItemImpl>(quote!(
+            impl<'a, 'r> ::rocket::request::FromRequest<'a, 'r> for MyStruct {
+                type Error = ();
+                fn from_request(
+                    request: &'a ::rocket::Request<'r>
+                ) -> ::rocket::Outcome<Self, (::rocket::http::Status, Self::Error), ()>
+                {
+                    let field = match ::rocket::Request::guard::<Field>(request) {
+                        ::rocket::Outcome::Success(user) => user,
+                        ::rocket::Outcome::Failure((status, error)) => 
+                            return ::rocket::Outcome::Failure((
+                                status,
+                                ::std::convert::From::from(error)
+                            )),
+                        ::rocket::Outcome::Forward(()) => return ::rocket::Outcome::Forward(()),
+                    };
+                    ::rocket::Outcome::Success(MyStruct { field: field })
+                }
+            }
+        ))
+        .unwrap()
+        .into();
+
+        assert_eq!(expected, actual);
     }
 }
