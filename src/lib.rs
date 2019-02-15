@@ -169,4 +169,42 @@ mod test {
 
         assert_eq!(expected, actual);
     }
+
+    #[test]
+    fn error_attribute_is_evaluated_correctly() {
+        let struct_def: proc_macro2::TokenStream = quote! {
+            #[error_type = "CustomError"]
+            struct MyStruct {
+                field: Field,
+            }
+        }
+        .into();
+        let actual =
+            syn::parse2::<ItemImpl>(derive_from_request_wrapped(struct_def.into())).unwrap();
+        #[rustfmt::skip]
+        let expected: ItemImpl = syn::parse2::<ItemImpl>(quote!(
+            impl<'a, 'r> ::rocket::request::FromRequest<'a, 'r> for MyStruct {
+                type Error = CustomError;
+                fn from_request(
+                    request: &'a ::rocket::Request<'r>
+                ) -> ::rocket::Outcome<Self, (::rocket::http::Status, Self::Error), ()>
+                {
+                    let field = match ::rocket::Request::guard::<Field>(request) {
+                        ::rocket::Outcome::Success(user) => user,
+                        ::rocket::Outcome::Failure((status, error)) => 
+                            return ::rocket::Outcome::Failure((
+                                status,
+                                ::std::convert::From::from(error)
+                            )),
+                        ::rocket::Outcome::Forward(()) => return ::rocket::Outcome::Forward(()),
+                    };
+                    ::rocket::Outcome::Success(MyStruct { field: field })
+                }
+            }
+        ))
+        .unwrap()
+        .into();
+
+        assert_eq!(expected, actual);
+    }
 }
